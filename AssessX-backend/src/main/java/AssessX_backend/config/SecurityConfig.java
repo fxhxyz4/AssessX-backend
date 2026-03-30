@@ -22,11 +22,6 @@ public class SecurityConfig {
         this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
     }
 
-    /**
-     * Chain 1 (вищий пріоритет): OAuth2 login flow.
-     * Сесія потрібна для CSRF-state параметру GitHub OAuth.
-     * Після успішного логіну — повертає JWT у JSON.
-     */
     @Bean
     @Order(1)
     public SecurityFilterChain oauth2FilterChain(HttpSecurity http) throws Exception {
@@ -48,10 +43,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Chain 2: всі решта ендпоінти — stateless JWT Bearer.
-     * /api/**, /auth/me, /auth/complete-registration — потребують валідного токену.
-     */
     @Bean
     @Order(2)
     public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
