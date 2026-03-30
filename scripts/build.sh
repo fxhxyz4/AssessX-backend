@@ -1,5 +1,8 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
 if ! command -v java &> /dev/null; then
     echo "Java not found. Installing..."
     sudo pacman -S --noconfirm jdk21-openjdk
@@ -37,13 +40,11 @@ if ! docker compose version &> /dev/null; then
     exit 1
 fi
 
-# Add user to docker group if not already
 if ! groups $USER | grep -q docker; then
     echo "Adding $USER to docker group..."
     sudo usermod -aG docker $USER
 fi
 
-# Use sudo if docker group not yet active in current session
 DOCKER_CMD="docker"
 if ! docker info &> /dev/null 2>&1; then
     echo "Docker group not active in current session, using sudo..."
@@ -51,9 +52,10 @@ if ! docker info &> /dev/null 2>&1; then
 fi
 
 echo "Building..."
+cd "$ROOT_DIR/AssessX-backend"
 ./mvnw clean package -DskipTests
 
 echo "Starting docker compose..."
-cd ..
+cd "$ROOT_DIR"
 
-$DOCKER_CMD compose up --build
+$DOCKER_CMD compose -f docker-compose.yml -f docker-compose.override.yml up --build
