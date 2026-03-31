@@ -29,3 +29,7 @@ buildNumber.properties
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+scripts/build.sh
+docker-compose.dev.yml
+docker-compose.yml
