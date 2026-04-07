@@ -6,6 +6,8 @@ import AssessX_backend.dto.CreateCodePracticeRequest;
 import AssessX_backend.dto.SubmitCodeRequest;
 import AssessX_backend.exception.AssignmentNotFoundException;
 import AssessX_backend.exception.CodePracticeNotFoundException;
+import AssessX_backend.exception.DeadlineExpiredException;
+import AssessX_backend.exception.InvalidAssignmentException;
 import AssessX_backend.exception.UserNotFoundException;
 import AssessX_backend.model.Assignment;
 import AssessX_backend.model.CodePractice;
@@ -126,6 +128,12 @@ public class CodePracticeService {
         if (request.getAssignmentId() != null && userId != null) {
             Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
                     .orElseThrow(() -> new AssignmentNotFoundException(request.getAssignmentId()));
+            if (assignment.getPractice() == null || !id.equals(assignment.getPractice().getId())) {
+                throw new InvalidAssignmentException("Assignment does not belong to this practice");
+            }
+            if (assignment.getDeadline() != null && LocalDateTime.now().isAfter(assignment.getDeadline())) {
+                throw new DeadlineExpiredException();
+            }
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserNotFoundException(userId));
             int attemptNumber = resultRepository.countByUserIdAndAssignmentId(userId, assignment.getId()) + 1;

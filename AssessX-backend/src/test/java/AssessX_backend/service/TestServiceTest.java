@@ -4,6 +4,9 @@ import AssessX_backend.dto.CreateTestRequest;
 import AssessX_backend.dto.SubmitTestRequest;
 import AssessX_backend.dto.TestResponseDto;
 import AssessX_backend.dto.TestSubmitResultDto;
+import AssessX_backend.exception.DeadlineExpiredException;
+import AssessX_backend.exception.InvalidAssignmentException;
+import AssessX_backend.model.Assignment;
 import AssessX_backend.model.Test;
 import AssessX_backend.model.User;
 import AssessX_backend.exception.TestNotFoundException;
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -227,5 +231,48 @@ class TestServiceTest {
         assertThatThrownBy(() -> testService.submitTest(99L, req, null))
                 .isInstanceOf(TestNotFoundException.class)
                 .hasMessageContaining("Test not found");
+    }
+
+    @org.junit.jupiter.api.Test
+    void submitTest_assignmentMismatch_throwsInvalidAssignmentException() {
+        Test otherTest = new Test();
+        otherTest.setId(99L);
+
+        Assignment assignment = new Assignment();
+        assignment.setId(10L);
+        assignment.setTest(otherTest);
+
+        when(testRepository.findById(1L)).thenReturn(Optional.of(test));
+        when(assignmentRepository.findById(10L)).thenReturn(Optional.of(assignment));
+
+        SubmitTestRequest req = new SubmitTestRequest();
+        req.setAssignmentId(10L);
+        req.setAnswers(Map.of("1", "A"));
+
+        assertThatThrownBy(() -> testService.submitTest(1L, req, 1L))
+                .isInstanceOf(InvalidAssignmentException.class)
+                .hasMessageContaining("does not belong to this test");
+    }
+
+    @org.junit.jupiter.api.Test
+    void submitTest_expiredDeadline_throwsDeadlineExpiredException() {
+        Test matchingTest = new Test();
+        matchingTest.setId(1L);
+
+        Assignment assignment = new Assignment();
+        assignment.setId(10L);
+        assignment.setTest(matchingTest);
+        assignment.setDeadline(LocalDateTime.now().minusHours(1));
+
+        when(testRepository.findById(1L)).thenReturn(Optional.of(test));
+        when(assignmentRepository.findById(10L)).thenReturn(Optional.of(assignment));
+
+        SubmitTestRequest req = new SubmitTestRequest();
+        req.setAssignmentId(10L);
+        req.setAnswers(Map.of("1", "A"));
+
+        assertThatThrownBy(() -> testService.submitTest(1L, req, 1L))
+                .isInstanceOf(DeadlineExpiredException.class)
+                .hasMessageContaining("deadline has expired");
     }
 }

@@ -5,7 +5,10 @@ import AssessX_backend.dto.CodeSubmissionResultDto;
 import AssessX_backend.dto.CreateCodePracticeRequest;
 import AssessX_backend.dto.SubmitCodeRequest;
 import AssessX_backend.exception.CodePracticeNotFoundException;
+import AssessX_backend.exception.DeadlineExpiredException;
+import AssessX_backend.exception.InvalidAssignmentException;
 import AssessX_backend.exception.UserNotFoundException;
+import AssessX_backend.model.Assignment;
 import AssessX_backend.model.CodePractice;
 import AssessX_backend.model.PracticeUnitTest;
 import AssessX_backend.model.User;
@@ -20,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -266,5 +270,52 @@ class CodePracticeServiceTest {
         assertThatThrownBy(() -> practiceService.submitPractice(99L, req, null))
                 .isInstanceOf(CodePracticeNotFoundException.class)
                 .hasMessageContaining("Code practice not found");
+    }
+
+    @Test
+    void submitPractice_assignmentMismatch_throwsInvalidAssignmentException() {
+        CodePractice otherPractice = new CodePractice();
+        otherPractice.setId(99L);
+
+        Assignment assignment = new Assignment();
+        assignment.setId(10L);
+        assignment.setPractice(otherPractice);
+
+        when(practiceRepository.findById(1L)).thenReturn(Optional.of(practice));
+        when(codeExecutionService.execute(anyString(), anyList(), anyInt()))
+                .thenReturn(new CodeSubmissionResultDto(1, 1, "RESULT:1/1\n"));
+        when(assignmentRepository.findById(10L)).thenReturn(Optional.of(assignment));
+
+        SubmitCodeRequest req = new SubmitCodeRequest();
+        req.setAssignmentId(10L);
+        req.setCode("public class Solution {}");
+
+        assertThatThrownBy(() -> practiceService.submitPractice(1L, req, 1L))
+                .isInstanceOf(InvalidAssignmentException.class)
+                .hasMessageContaining("does not belong to this practice");
+    }
+
+    @Test
+    void submitPractice_expiredDeadline_throwsDeadlineExpiredException() {
+        CodePractice matchingPractice = new CodePractice();
+        matchingPractice.setId(1L);
+
+        Assignment assignment = new Assignment();
+        assignment.setId(10L);
+        assignment.setPractice(matchingPractice);
+        assignment.setDeadline(LocalDateTime.now().minusHours(1));
+
+        when(practiceRepository.findById(1L)).thenReturn(Optional.of(practice));
+        when(codeExecutionService.execute(anyString(), anyList(), anyInt()))
+                .thenReturn(new CodeSubmissionResultDto(1, 1, "RESULT:1/1\n"));
+        when(assignmentRepository.findById(10L)).thenReturn(Optional.of(assignment));
+
+        SubmitCodeRequest req = new SubmitCodeRequest();
+        req.setAssignmentId(10L);
+        req.setCode("public class Solution {}");
+
+        assertThatThrownBy(() -> practiceService.submitPractice(1L, req, 1L))
+                .isInstanceOf(DeadlineExpiredException.class)
+                .hasMessageContaining("deadline has expired");
     }
 }

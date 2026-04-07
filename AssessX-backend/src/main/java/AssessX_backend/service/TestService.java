@@ -5,6 +5,8 @@ import AssessX_backend.dto.SubmitTestRequest;
 import AssessX_backend.dto.TestResponseDto;
 import AssessX_backend.dto.TestSubmitResultDto;
 import AssessX_backend.exception.AssignmentNotFoundException;
+import AssessX_backend.exception.DeadlineExpiredException;
+import AssessX_backend.exception.InvalidAssignmentException;
 import AssessX_backend.exception.TestAnswersParseException;
 import AssessX_backend.exception.TestNotFoundException;
 import AssessX_backend.exception.UserNotFoundException;
@@ -113,6 +115,12 @@ public class TestService {
         if (request.getAssignmentId() != null && userId != null) {
             Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
                     .orElseThrow(() -> new AssignmentNotFoundException(request.getAssignmentId()));
+            if (assignment.getTest() == null || !id.equals(assignment.getTest().getId())) {
+                throw new InvalidAssignmentException("Assignment does not belong to this test");
+            }
+            if (assignment.getDeadline() != null && LocalDateTime.now().isAfter(assignment.getDeadline())) {
+                throw new DeadlineExpiredException();
+            }
             User user = findUserById(userId);
             int attemptNumber = resultRepository.countByUserIdAndAssignmentId(userId, assignment.getId()) + 1;
 
